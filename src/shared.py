@@ -9,12 +9,18 @@ class Config:
         self.read_file()
 
     def read_file(self) -> None:
+        try:
+            with open(self.file_name, "x") as f:
+                print("{}", file=f)
+        except FileExistsError:
+            pass
+
         with open(self.file_name) as f:
             self.dictionary = json.load(f)
 
     def write_file(self) -> None:
         with open(f"{self.file_name}", "w") as f:
-            f.write(json.dumps(self.dictionary))  # User-friendly? Who do you think I am?
+            f.write(json.dumps(self.dictionary, indent=4))
 
     def read(self, *keys: str | list[str]) -> any:
         current_level = self.dictionary

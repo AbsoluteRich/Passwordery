@@ -4,8 +4,6 @@ from getpass import getpass
 from hashlib import sha256
 from sys import exit
 from cryptography.fernet import Fernet
-from dotenv import load_dotenv
-from os import getenv
 
 
 def pad_string_with_rotation(string: str, padding: str) -> str:
@@ -21,10 +19,18 @@ def hash_password(raw_password: str, salt: str) -> str:
     return hasher.hexdigest()
 
 
-load_dotenv()
 db = Config("restricted.json")
 user_credentials = [False, None]  # Is the user logged in? + username, if any
-fern = Fernet(getenv("MASTER_KEY").encode("utf-8"))
+
+try:
+    with open("fernet.key", "wb") as f:
+        f.write(Fernet.generate_key())
+except FileExistsError:
+    pass
+
+with open("fernet.key", "rb") as f:
+    key = f.readline()
+    fern = Fernet(key)
 
 while True:
     if user_credentials[0]:
@@ -36,14 +42,21 @@ while True:
                 encrypted = fern.encrypt(encrypted)
                 encrypted = encrypted.decode("utf-8")
                 db.write(encrypted, user_credentials[1], "text")
-                print("Success! You can now view your encrypted text area")
+                print("Success! You can now view your encrypted text area.")
 
             case "view" | "get":
                 text_area = db.read(user_credentials[1], "text")
-                decrypted = text_area.encode("utf-8")
-                decrypted = fern.decrypt(decrypted)
-                decrypted = decrypted.decode("utf-8")
-                print(decrypted)
+                if text_area:
+                    decrypted = text_area.encode("utf-8")
+                    decrypted = fern.decrypt(decrypted)
+                    decrypted = decrypted.decode("utf-8")
+                    print(decrypted)
+                else:
+                    print("Text area not found.")
+
+            case "clear":
+                db.delete(user_credentials[1], "text")
+                print("Success. Your text area has been deleted.")
 
             case "delete":
                 print("Deleting your account will permanently erase your login credentials and text area.")
@@ -56,7 +69,7 @@ while True:
                     print("Cancelled.")
 
             case "logout":
-                print(f"Deauthorising user '{user_credentials[1]}'")
+                print(f"Deauthorising user '{user_credentials[1]}'.")
                 user_credentials = [False, None]
 
             case "exit":
@@ -82,11 +95,14 @@ while True:
                         "password": password,
                         "salt": password_salt
                     }, username)
-                    print(f"Success! You can now log in under '{username}'")
+                    print(f"Success! You can now log in under '{username}'.")
 
             case "accounts":
-                for username in db.dictionary.keys():
-                    print(username)
+                if db.dictionary:
+                    for username in db.dictionary.keys():
+                        print(username)
+                else:
+                    print("No accounts found.")
 
             case "login":
                 input_username = sinput("Username")
@@ -98,7 +114,7 @@ while True:
                     if hash_password(input_password, account_salt) == account_password:
                         user_credentials[0] = True
                         user_credentials[1] = input_username
-                        print(f"Success! Logged in as '{input_username}'")
+                        print(f"Success! Logged in as '{input_username}'.")
                     else:
                         print("Invalid password.")
                 else:

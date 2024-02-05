@@ -1,5 +1,6 @@
 archives/
 restricted.json
+fernet.key
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
